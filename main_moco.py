@@ -60,6 +60,8 @@ parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
                     dest='weight_decay')
 parser.add_argument('-p', '--print-freq', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
+parser.add_argument('-s', '--sava-freq', default=10, type=int,
+                    metavar='N', help='save checkpoint frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('--output-dir', default='', type=str, metavar='PATH',
@@ -269,7 +271,7 @@ def main_worker(gpu, ngpus_per_node, args):
         adjust_learning_rate(optimizer, epoch, args)
 
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch, logger, args)
+        # train(train_loader, model, criterion, optimizer, epoch, logger, args)
 
         if not args.multiprocessing_distributed or (args.multiprocessing_distributed
                 and args.rank % ngpus_per_node == 0):
@@ -278,7 +280,15 @@ def main_worker(gpu, ngpus_per_node, args):
                 'arch': args.arch,
                 'state_dict': model.state_dict(),
                 'optimizer' : optimizer.state_dict(),
-            }, is_best=False, filename='output/{}/checkpoint_{:04d}.pth.tar'.format(args.output_dir,epoch))
+            }, is_best=False, filename='output/{}/checkpoint_current.pth.tar'.format(args.output_dir))
+            if epoch % args.save_freq == 0:
+                save_checkpoint({
+                    'epoch': epoch + 1,
+                    'arch': args.arch,
+                    'state_dict': model.state_dict(),
+                    'optimizer' : optimizer.state_dict(),
+                }, is_best=False, filename='output/{}/checkpoint_{:04d}.pth.tar'.format(args.output_dir,epoch))
+
 
 
 def train(train_loader, model, criterion, optimizer, epoch, logger, args):
