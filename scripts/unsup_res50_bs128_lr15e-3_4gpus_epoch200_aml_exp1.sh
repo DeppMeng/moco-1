@@ -1,3 +1,5 @@
+apt-get update
+pip install termcolor
 python main_moco.py \
     -a resnet50 \
     --lr 0.015 \
