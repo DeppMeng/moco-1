@@ -1,4 +1,4 @@
-pip install termcolor
+pip install termcolor --user
 python -m torch.distributed.launch --nproc_per_node=4 main_moco_distributed_launch.py \
     -a resnet50 \
     --lr 0.015 \
