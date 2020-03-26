@@ -213,7 +213,7 @@ def main_worker(gpu, ngpus_per_node, args):
     # optionally resume from a checkpoint
     if args.resume:
         if args.resume == 'auto':
-            ckpt = 'output/{}/checkpoint_current.pth'
+            ckpt = 'output/{}/checkpoint_current.pth'.format(args.output_dir)
             if os.path.isfile(ckpt):
                 logger.info("=> loading checkpoint '{}'".format(ckpt))
                 if args.gpu is None:
