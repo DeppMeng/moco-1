@@ -1,5 +1,4 @@
-apt-get update
-pip install termcolor
+source activate moco-python3.6.3
 python main_moco.py \
     -a resnet50 \
     --lr 0.015 \
