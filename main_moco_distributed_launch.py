@@ -211,10 +211,11 @@ def main_worker(gpu, ngpus_per_node, args):
                                 weight_decay=args.weight_decay)
 
     # optionally resume from a checkpoint
+    logger.info('Checking resume configuration')
     if args.resume:
         if args.resume == 'auto':
             ckpt = 'output/{}/checkpoint_current.pth.tar'.format(args.output_dir)
-            print(ckpt)
+            logger.info(ckpt)
             if os.path.isfile(ckpt):
                 logger.info("=> loading checkpoint '{}'".format(ckpt))
                 if args.gpu is None:
@@ -246,6 +247,7 @@ def main_worker(gpu, ngpus_per_node, args):
                 logger.info("=> no checkpoint found at '{}'".format(args.resume))
 
     cudnn.benchmark = True
+    logger.info('Resume configuration checked')
 
     # Data loading code
     traindir = os.path.join(args.data, 'train')
@@ -287,12 +289,13 @@ def main_worker(gpu, ngpus_per_node, args):
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
         num_workers=args.workers, pin_memory=True, sampler=train_sampler, drop_last=True)
+    logger.info('dataloader created')
 
+    logger.info('training started')
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
         adjust_learning_rate(optimizer, epoch, args)
-
         # train for one epoch
         train(train_loader, model, criterion, optimizer, epoch, logger, args)
 
