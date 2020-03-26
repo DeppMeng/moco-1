@@ -249,6 +249,7 @@ def main_worker(gpu, ngpus_per_node, args):
     cudnn.benchmark = True
     logger.info('Resume configuration checked')
 
+    logger.info('Creating train_dataset')
     # Data loading code
     traindir = os.path.join(args.data, 'train')
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
@@ -280,6 +281,9 @@ def main_worker(gpu, ngpus_per_node, args):
     train_dataset = datasets.ImageFolder(
         traindir,
         moco.loader.TwoCropsTransform(transforms.Compose(augmentation)))
+
+    logger.info('train_dataset created')
+    logger.info('Creating dataloader')
 
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
