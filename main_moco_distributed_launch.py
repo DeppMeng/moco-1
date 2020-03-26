@@ -212,21 +212,37 @@ def main_worker(gpu, ngpus_per_node, args):
 
     # optionally resume from a checkpoint
     if args.resume:
-        if os.path.isfile(args.resume):
-            logger.info("=> loading checkpoint '{}'".format(args.resume))
-            if args.gpu is None:
-                checkpoint = torch.load(args.resume)
-            else:
-                # Map model to be loaded to specified single gpu.
-                loc = args.gpu
-                checkpoint = torch.load(args.resume, map_location=loc)
-            args.start_epoch = checkpoint['epoch']
-            model.load_state_dict(checkpoint['state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer'])
-            logger.info("=> loaded checkpoint '{}' (epoch {})"
-                  .format(args.resume, checkpoint['epoch']))
+        if args.resume == 'auto':
+            ckpt = 'output/{}/checkpoint_current.pth'
+            if os.path.isfile(ckpt):
+                logger.info("=> loading checkpoint '{}'".format(ckpt))
+                if args.gpu is None:
+                    checkpoint = torch.load(ckpt)
+                else:
+                    # Map model to be loaded to specified single gpu.
+                    loc = args.gpu
+                    checkpoint = torch.load(ckpt, map_location=loc)
+                args.start_epoch = checkpoint['epoch']
+                model.load_state_dict(checkpoint['state_dict'])
+                optimizer.load_state_dict(checkpoint['optimizer'])
+                logger.info("=> loaded checkpoint '{}' (epoch {})"
+                    .format(ckpt, checkpoint['epoch']))
         else:
-            logger.info("=> no checkpoint found at '{}'".format(args.resume))
+            if os.path.isfile(args.resume):
+                logger.info("=> loading checkpoint '{}'".format(args.resume))
+                if args.gpu is None:
+                    checkpoint = torch.load(args.resume)
+                else:
+                    # Map model to be loaded to specified single gpu.
+                    loc = args.gpu
+                    checkpoint = torch.load(args.resume, map_location=loc)
+                args.start_epoch = checkpoint['epoch']
+                model.load_state_dict(checkpoint['state_dict'])
+                optimizer.load_state_dict(checkpoint['optimizer'])
+                logger.info("=> loaded checkpoint '{}' (epoch {})"
+                    .format(args.resume, checkpoint['epoch']))
+            else:
+                logger.info("=> no checkpoint found at '{}'".format(args.resume))
 
     cudnn.benchmark = True
 
