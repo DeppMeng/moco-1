@@ -301,7 +301,7 @@ def main_worker(gpu, ngpus_per_node, args):
 
     logger.info('training started')
     for epoch in range(args.start_epoch, args.epochs):
-        if args.distributed:
+        if train_sampler != None:
             train_sampler.set_epoch(epoch)
         adjust_learning_rate(optimizer, epoch, args)
         # train for one epoch
