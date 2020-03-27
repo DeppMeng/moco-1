@@ -25,6 +25,7 @@ import torchvision.models as models
 import moco.loader
 import moco.builder
 from moco.utils.logger import setup_logger
+from moco.dataset.dist_zipdataset import DistImageZipFolder
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -104,6 +105,7 @@ parser.add_argument('--cos', action='store_true',
 
 # additional configs
 parser.add_argument("--local_rank", type=int, default=0)
+parser.add_argument("--data-format", tpye=str, default='image')
 
 
 def main():
@@ -278,14 +280,16 @@ def main_worker(gpu, ngpus_per_node, args):
             normalize
         ]
 
-    train_dataset = datasets.ImageFolder(
+    dataset_instance = datasets.ImageFolder if args.data_format == 'image' else DistImageZipFolder
+    traindir = traindir if args.data_format == 'image' else traindir + '.zip'
+    train_dataset = dataset_instance(
         traindir,
         moco.loader.TwoCropsTransform(transforms.Compose(augmentation)))
 
     logger.info('train_dataset created')
     logger.info('Creating dataloader')
 
-    if args.distributed:
+    if args.distributed and args.data_format == 'image':
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     else:
         train_sampler = None
