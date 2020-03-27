@@ -105,7 +105,7 @@ parser.add_argument('--cos', action='store_true',
 
 # additional configs
 parser.add_argument("--local_rank", type=int, default=0)
-parser.add_argument("--data-format", tpye=str, default='image')
+parser.add_argument("--data-format", type=str, default='image')
 
 
 def main():
