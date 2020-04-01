@@ -1,3 +1,4 @@
+import torch
 class TSVDistributedSampler(torch.utils.data.distributed.DistributedSampler):
     """ Extends pytorch distributed sampler with in-process shuffling
     """
@@ -10,7 +11,7 @@ class TSVDistributedSampler(torch.utils.data.distributed.DistributedSampler):
             indices = torch.randperm(len(self.dataset), generator=g).tolist()
             indices = [i for i in indices if i % self.num_replicas == self.rank]
         else:
-            indices = [i for i in range(len(sel.dataset)) if i % self.num_replicas == self.rank]
+            indices = [i for i in range(len(self.dataset)) if i % self.num_replicas == self.rank]
 
         # add extra samples to make it evenly divisible
         indices += indices[:(self.num_samples - len(indices))]
