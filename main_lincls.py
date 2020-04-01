@@ -21,6 +21,7 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 import moco.dataset.tsv as tsv
+from moco.utils.utils import TSVDistributedSampler
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -272,12 +273,7 @@ def main_worker(gpu, ngpus_per_node, args):
     if args.distributed:
         # tsv data format requires random subset sampler
         if args.tsv_data:
-            full_indices = list(range(len(train_dataset)))
-            my_world_size = dist.get_world_size()
-            my_rank = dist.get_rank()
-            indices = full_indices[my_rank : len(train_dataset) : my_world_size]
-            print(len(train_dataset))
-            train_sampler = torch.utils.data.SubsetRandomSampler(indices)
+            train_sampler = TSVDistributedSampler(train_dataset)
         else:
             train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     else:
