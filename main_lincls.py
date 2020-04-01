@@ -20,7 +20,7 @@ import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
-from moco.dataset.tsv import TSVInstancePreload
+import moco.dataset.tsv as tsv
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -250,7 +250,7 @@ def main_worker(gpu, ngpus_per_node, args):
 
     # use tsv data format
     if args.tsv_data:
-        train_dataset = TSVInstancePreload(
+        train_dataset = tsv.TSVInstancePreload(
             traindir,
             transforms.Compose([
                 transforms.RandomResizedCrop(224),
@@ -273,9 +273,10 @@ def main_worker(gpu, ngpus_per_node, args):
         # tsv data format requires random subset sampler
         if args.tsv_data:
             full_indices = list(range(len(train_dataset)))
-            world_size = dist.get_world_size()
-            rank = dist.get_rank()
-            indices = full_indices[rank : len(train_dataset) : world_size]
+            my_world_size = dist.get_world_size()
+            my_rank = dist.get_rank()
+            indices = full_indices[my_rank : len(train_dataset) : my_world_size]
+            print(len(train_dataset))
             train_sampler = torch.utils.data.SubsetRandomSampler(indices)
         else:
             train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
