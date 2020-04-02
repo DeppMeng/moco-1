@@ -282,7 +282,7 @@ def main_worker(gpu, ngpus_per_node, args):
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
-        num_workers=args.workers, pin_memory=True, sampler=train_sampler)
+        num_workers=0, pin_memory=True, sampler=train_sampler)
     print('DataLoader created')
 
     val_loader = torch.utils.data.DataLoader(
