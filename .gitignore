@@ -9,7 +9,7 @@ ckpts/
 tmp*.py
 # run*.sh
 *.pdf
-
+moco/dataset/tsv.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
