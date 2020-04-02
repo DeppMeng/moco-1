@@ -269,7 +269,7 @@ def main_worker(gpu, ngpus_per_node, args):
                 transforms.ToTensor(),
                 normalize,
             ]))
-
+    print('Dataset created')
     if args.distributed:
         # tsv data format requires random subset sampler
         if args.tsv_data:
@@ -278,10 +278,12 @@ def main_worker(gpu, ngpus_per_node, args):
             train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     else:
         train_sampler = None
+    print('DataSampler created')
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
         num_workers=args.workers, pin_memory=True, sampler=train_sampler)
+    print('DataLoader created')
 
     val_loader = torch.utils.data.DataLoader(
         datasets.ImageFolder(valdir, transforms.Compose([
@@ -298,10 +300,11 @@ def main_worker(gpu, ngpus_per_node, args):
         return
 
     for epoch in range(args.start_epoch, args.epochs):
-        if args.distributed and not args.tsv_data:
+        if args.distributed:
             train_sampler.set_epoch(epoch)
         adjust_learning_rate(optimizer, epoch, args)
 
+        print('Training started')
         # train for one epoch
         train(train_loader, model, criterion, optimizer, epoch, args)
 
