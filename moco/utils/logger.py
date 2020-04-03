@@ -30,7 +30,7 @@ class _ColorfulFormatter(logging.Formatter):
 # so that calling setup_logger multiple times won't add many handlers
 @functools.lru_cache()
 def setup_logger(
-    output=None, distributed_rank=0, *, color=True, name="moco", abbrev_name=None
+    output=None, distributed_rank=0, *, color=True, name="moco", phase="pretrain", abbrev_name=None
 ):
     """
     Initialize the detectron2 logger and set its verbosity level to "INFO".
@@ -77,7 +77,7 @@ def setup_logger(
                 filename = output
             else:
                 time_str = time.strftime('%Y-%m-%d-%H-%M')
-                filename = os.path.join(output, "log_{}.txt".format(time_str))
+                filename = os.path.join(output, "log_{}_{}.txt".format(time_str, phase))
             # if distributed_rank > 0:
             #     filename = filename + f".rank{distributed_rank}"
             os.makedirs(os.path.dirname(filename), exist_ok=True)

@@ -20,8 +20,9 @@ import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
-import moco.dataset.tsv as tsv
-from moco.utils.utils import TSVDistributedSampler
+import lib.dataset.TSV as tsv
+from lib.utils.utils import TSVDistributedSampler
+from lib.utils.logger import setup_logger
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -86,6 +87,10 @@ parser.add_argument('--tsv-data', action='store_true',
 
 # additional configs
 parser.add_argument("--local_rank", type=int, default=0)
+parser.add_argument('--output-dir', default='debug', type=str,
+                    help='directory to output logs and checkpoints')
+parser.add_argument('--save-freq', default=10, type=int,
+                    metavar='N', help='save frequency (default: 10)')
 
 best_acc1 = 0
 
@@ -146,8 +151,10 @@ def main_worker(gpu, ngpus_per_node, args):
             # global rank among all the processes
             args.rank = args.rank * ngpus_per_node + gpu
         dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url)
+    logger = setup_logger(output='output/{}/'.format(args.output_dir), distributed_rank=dist.get_rank(), name="inst-disc", phase='lincls')
+    
     # create model
-    print("=> creating model '{}'".format(args.arch))
+    logger.info("=> creating model '{}'".format(args.arch))
     model = models.__dict__[args.arch]()
 
     # freeze all layers but the last fc
@@ -161,7 +168,7 @@ def main_worker(gpu, ngpus_per_node, args):
     # load from pre-trained, before DistributedDataParallel constructor
     if args.pretrained:
         if os.path.isfile(args.pretrained):
-            print("=> loading checkpoint '{}'".format(args.pretrained))
+            logger.info("=> loading checkpoint '{}'".format(args.pretrained))
             checkpoint = torch.load(args.pretrained, map_location="cpu")
 
             # rename moco pre-trained keys
@@ -176,11 +183,12 @@ def main_worker(gpu, ngpus_per_node, args):
 
             args.start_epoch = 0
             msg = model.load_state_dict(state_dict, strict=False)
+            # logger.info(msg.missing_keys)
             assert set(msg.missing_keys) == {"fc.weight", "fc.bias"}
 
-            print("=> loaded pre-trained model '{}'".format(args.pretrained))
+            logger.info("=> loaded pre-trained model '{}'".format(args.pretrained))
         else:
-            print("=> no checkpoint found at '{}'".format(args.pretrained))
+            logger.info("=> no checkpoint found at '{}'".format(args.pretrained))
 
     if args.distributed:
         # For multiprocessing distributed, DistributedDataParallel constructor
@@ -223,25 +231,39 @@ def main_worker(gpu, ngpus_per_node, args):
 
     # optionally resume from a checkpoint
     if args.resume:
-        if os.path.isfile(args.resume):
-            print("=> loading checkpoint '{}'".format(args.resume))
-            if args.gpu is None:
-                checkpoint = torch.load(args.resume)
-            else:
-                # Map model to be loaded to specified single gpu.
-                loc = 'cuda:{}'.format(args.gpu)
-                checkpoint = torch.load(args.resume, map_location=loc)
-            args.start_epoch = checkpoint['epoch']
-            best_acc1 = checkpoint['best_acc1']
-            if args.gpu is not None:
-                # best_acc1 may be from a checkpoint from a different GPU
-                best_acc1 = best_acc1.to(args.gpu)
-            model.load_state_dict(checkpoint['state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer'])
-            print("=> loaded checkpoint '{}' (epoch {})"
-                  .format(args.resume, checkpoint['epoch']))
+        if args.resume == 'auto':
+            ckpt = 'output/{}/checkpoint_lincls_current.pth.tar'.format(args.output_dir)
+            logger.info(ckpt)
+            if os.path.isfile(ckpt):
+                logger.info("=> loading checkpoint '{}'".format(ckpt))
+                if args.gpu is None:
+                    checkpoint = torch.load(ckpt)
+                else:
+                    # Map model to be loaded to specified single gpu.
+                    loc = args.gpu
+                    checkpoint = torch.load(ckpt, map_location=lambda storage, loc: storage)
+                args.start_epoch = checkpoint['epoch']
+                model.load_state_dict(checkpoint['state_dict'])
+                optimizer.load_state_dict(checkpoint['optimizer'])
+                logger.info("=> loaded checkpoint '{}' (epoch {})"
+                    .format(ckpt, checkpoint['epoch']))
         else:
-            print("=> no checkpoint found at '{}'".format(args.resume))
+            if os.path.isfile(args.resume):
+                logger.info("=> loading checkpoint '{}'".format(args.resume))
+                if args.gpu is None:
+                    checkpoint = torch.load(args.resume)
+                else:
+                    # Map model to be loaded to specified single gpu.
+                    loc = args.gpu
+                    checkpoint = torch.load(args.resume, map_location=lambda storage, loc: storage)
+                args.start_epoch = checkpoint['epoch']
+                model.load_state_dict(checkpoint['state_dict'])
+                optimizer.load_state_dict(checkpoint['optimizer'])
+                logger.info("=> loaded checkpoint '{}' (epoch {})"
+                    .format(args.resume, checkpoint['epoch']))
+            else:
+                logger.info("=> no checkpoint found at '{}'".format(args.resume))
+
 
     cudnn.benchmark = True
 
@@ -271,7 +293,7 @@ def main_worker(gpu, ngpus_per_node, args):
                 transforms.ToTensor(),
                 normalize,
             ]))
-    print('Dataset created')
+    logger.info('Dataset created')
     if args.distributed:
         # tsv data format requires random subset sampler
         if args.tsv_data:
@@ -280,12 +302,12 @@ def main_worker(gpu, ngpus_per_node, args):
             train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     else:
         train_sampler = None
-    print('DataSampler created')
+    logger.info('DataSampler created')
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
         num_workers=args.workers, pin_memory=True, sampler=train_sampler)
-    print('DataLoader created')
+    logger.info('DataLoader created')
 
     val_loader = torch.utils.data.DataLoader(
         datasets.ImageFolder(valdir, transforms.Compose([
@@ -298,7 +320,7 @@ def main_worker(gpu, ngpus_per_node, args):
         num_workers=args.workers, pin_memory=True)
 
     if args.evaluate:
-        validate(val_loader, model, criterion, args)
+        validate(logger, val_loader, model, criterion, args)
         return
 
     for epoch in range(args.start_epoch, args.epochs):
@@ -306,31 +328,35 @@ def main_worker(gpu, ngpus_per_node, args):
             train_sampler.set_epoch(epoch)
         adjust_learning_rate(optimizer, epoch, args)
 
-        print('Training started')
+        logger.info('Training started')
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch, args)
+        train(logger, train_loader, model, criterion, optimizer, epoch, args)
 
         # evaluate on validation set
-        acc1 = validate(val_loader, model, criterion, args)
+        acc1 = validate(logger, val_loader, model, criterion, args)
 
         # remember best acc@1 and save checkpoint
         is_best = acc1 > best_acc1
         best_acc1 = max(acc1, best_acc1)
 
-        if not args.multiprocessing_distributed or (args.multiprocessing_distributed
-                and args.rank % ngpus_per_node == 0):
+        if dist.get_rank() == 0:
             save_checkpoint({
                 'epoch': epoch + 1,
                 'arch': args.arch,
                 'state_dict': model.state_dict(),
-                'best_acc1': best_acc1,
                 'optimizer' : optimizer.state_dict(),
-            }, is_best)
-            if epoch == args.start_epoch:
-                sanity_check(model.state_dict(), args.pretrained)
+            }, is_best=False, filename='output/{}/checkpoint_lincls_current.pth.tar'.format(args.output_dir))
+            if epoch % args.save_freq == 0:
+                save_checkpoint({
+                    'epoch': epoch + 1,
+                    'arch': args.arch,
+                    'state_dict': model.state_dict(),
+                    'optimizer' : optimizer.state_dict(),
+                }, is_best=False, filename='output/{}/checkpoint_lincls_{:04d}.pth.tar'.format(args.output_dir,epoch))
 
 
-def train(train_loader, model, criterion, optimizer, epoch, args):
+
+def train(logger, train_loader, model, criterion, optimizer, epoch, args):
     batch_time = AverageMeter('Time', ':6.3f')
     data_time = AverageMeter('Data', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
@@ -379,10 +405,10 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         end = time.time()
 
         if i % args.print_freq == 0:
-            progress.display(i)
+            progress.display(i, logger)
 
 
-def validate(val_loader, model, criterion, args):
+def validate(logger, val_loader, model, criterion, args):
     batch_time = AverageMeter('Time', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
     top1 = AverageMeter('Acc@1', ':6.2f')
@@ -417,10 +443,10 @@ def validate(val_loader, model, criterion, args):
             end = time.time()
 
             if i % args.print_freq == 0:
-                progress.display(i)
+                progress.display(i, logger)
 
         # TODO: this should also be done with the ProgressMeter
-        print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
+        logger.info(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
               .format(top1=top1, top5=top5))
 
     return top1.avg
@@ -429,7 +455,7 @@ def validate(val_loader, model, criterion, args):
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     torch.save(state, filename)
     if is_best:
-        shutil.copyfile(filename, 'model_best.pth.tar')
+        shutil.copyfile(filename, 'model_lincls_best.pth.tar')
 
 
 def sanity_check(state_dict, pretrained_weights):
@@ -486,10 +512,10 @@ class ProgressMeter(object):
         self.meters = meters
         self.prefix = prefix
 
-    def display(self, batch):
+    def display(self, batch, logger):
         entries = [self.prefix + self.batch_fmtstr.format(batch)]
         entries += [str(meter) for meter in self.meters]
-        print('\t'.join(entries))
+        logger.info('\t'.join(entries))
 
     def _get_batch_fmtstr(self, num_batches):
         num_digits = len(str(num_batches // 1))
