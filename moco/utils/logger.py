@@ -75,7 +75,8 @@ def setup_logger(
             if output.endswith(".txt") or output.endswith(".log"):
                 filename = output
             else:
-                filename = os.path.join(output, "log.txt")
+                time_str = time.strftime('%Y-%m-%d-%H-%M')
+                filename = os.path.join(output, "log_{}.txt".format(time_str))
             # if distributed_rank > 0:
             #     filename = filename + f".rank{distributed_rank}"
             os.makedirs(os.path.dirname(filename), exist_ok=True)
