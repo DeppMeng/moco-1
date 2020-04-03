@@ -20,9 +20,9 @@ import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
-import lib.dataset.TSV as tsv
-from lib.utils.utils import TSVDistributedSampler
-from lib.utils.logger import setup_logger
+import moco.dataset.tsv as tsv
+from moco.utils.utils import TSVDistributedSampler
+from moco.utils.logger import setup_logger
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
