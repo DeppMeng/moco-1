@@ -26,6 +26,8 @@ import moco.loader
 import moco.builder
 from moco.utils.logger import setup_logger
 from moco.dataset.dist_zipdataset import DistImageZipFolder
+from moco.dataset.tsv import TSVInstancePreload
+from moco.utils.utils import TSVDistributedSampler
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -39,7 +41,7 @@ parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet50',
                     help='model architecture: ' +
                         ' | '.join(model_names) +
                         ' (default: resnet50)')
-parser.add_argument('-j', '--workers', default=32, type=int, metavar='N',
+parser.add_argument('-j', '--workers', default=16, type=int, metavar='N',
                     help='number of data loading workers (default: 32)')
 parser.add_argument('--epochs', default=200, type=int, metavar='N',
                     help='number of total epochs to run')
@@ -105,7 +107,11 @@ parser.add_argument('--cos', action='store_true',
 
 # additional configs
 parser.add_argument("--local_rank", type=int, default=0)
-parser.add_argument("--data-format", type=str, default='image')
+parser.add_argument("--data-format", type=str, default='image',
+                    help='deprecated')
+parser.add_argument('--tsv-data', action='store_true',
+                    help='use tsv format dataloader')
+
 
 
 def main():
@@ -280,8 +286,9 @@ def main_worker(gpu, ngpus_per_node, args):
             normalize
         ]
 
-    dataset_instance = datasets.ImageFolder if args.data_format == 'image' else DistImageZipFolder
-    traindir = traindir if args.data_format == 'image' else traindir + '.zip'
+    # dataset_instance = datasets.ImageFolder if args.data_format == 'image' else DistImageZipFolder
+    # traindir = traindir if args.data_format == 'image' else traindir + '.zip'
+    dataset_instance = TSVInstancePreload if args.tsv_data else datasets.ImageFolder
     train_dataset = dataset_instance(
         traindir,
         moco.loader.TwoCropsTransform(transforms.Compose(augmentation)))
@@ -289,8 +296,12 @@ def main_worker(gpu, ngpus_per_node, args):
     logger.info('train_dataset created')
     logger.info('Creating dataloader')
 
-    if args.distributed and args.data_format == 'image':
-        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
+    if args.distributed:
+        # tsv data format requires random subset sampler
+        if args.tsv_data:
+            train_sampler = TSVDistributedSampler(train_dataset)
+        else:
+            train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     else:
         train_sampler = None
 
