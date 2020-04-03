@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 from termcolor import colored
+import time
 
 
 class _ColorfulFormatter(logging.Formatter):
