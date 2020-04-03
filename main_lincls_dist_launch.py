@@ -49,7 +49,7 @@ parser.add_argument('-b', '--batch-size', default=256, type=int,
                          'using Data Parallel or Distributed Data Parallel')
 parser.add_argument('--lr', '--learning-rate', default=30., type=float,
                     metavar='LR', help='initial learning rate', dest='lr')
-parser.add_argument('--schedule', default=[60, 80], nargs='*', type=int,
+parser.add_argument('--schedule', default=[20, 40], nargs='*', type=int,
                     help='learning rate schedule (when to drop lr by a ratio)')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
