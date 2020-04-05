@@ -56,7 +56,7 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
 parser.add_argument('--wd', '--weight-decay', default=0., type=float,
                     metavar='W', help='weight decay (default: 0.)',
                     dest='weight_decay')
-parser.add_argument('-p', '--print-freq', default=10, type=int,
+parser.add_argument('-p', '--print-freq', default=100, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
@@ -91,6 +91,8 @@ parser.add_argument('--output-dir', default='debug', type=str,
                     help='directory to output logs and checkpoints')
 parser.add_argument('--save-freq', default=10, type=int,
                     metavar='N', help='save frequency (default: 10)')
+parser.add_argument('--le-dataset', default='imagenet', type=str,
+                    help='directory to output logs and checkpoints')
 
 best_acc1 = 0
 
@@ -232,7 +234,7 @@ def main_worker(gpu, ngpus_per_node, args):
     # optionally resume from a checkpoint
     if args.resume:
         if args.resume == 'auto':
-            ckpt = 'output/{}/checkpoint_lincls_current.pth.tar'.format(args.output_dir)
+            ckpt = 'output/{}/checkpoint_lincls_{}_current.pth.tar'.format(args.output_dir, args.le_dataset)
             logger.info(ckpt)
             if os.path.isfile(ckpt):
                 logger.info("=> loading checkpoint '{}'".format(ckpt))
@@ -345,14 +347,14 @@ def main_worker(gpu, ngpus_per_node, args):
                 'arch': args.arch,
                 'state_dict': model.state_dict(),
                 'optimizer' : optimizer.state_dict(),
-            }, is_best=False, filename='output/{}/checkpoint_lincls_current.pth.tar'.format(args.output_dir))
+            }, is_best=False, filename='output/{}/checkpoint_lincls_{}_current.pth.tar'.format(args.output_dir, args.le_dataset))
             if epoch % args.save_freq == 0:
                 save_checkpoint({
                     'epoch': epoch + 1,
                     'arch': args.arch,
                     'state_dict': model.state_dict(),
                     'optimizer' : optimizer.state_dict(),
-                }, is_best=False, filename='output/{}/checkpoint_lincls_{:04d}.pth.tar'.format(args.output_dir,epoch))
+                }, is_best=False, filename='output/{}/checkpoint_lincls_{}_{:04d}.pth.tar'.format(args.output_dir, args.le_dataset, epoch))
 
 
 
