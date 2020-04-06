@@ -285,6 +285,13 @@ def main_worker(gpu, ngpus_per_node, args):
                 transforms.ToTensor(),
                 normalize,
             ]))
+
+        val_dataset = tsv.TSVInstancePreload(valdir, transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            normalize,
+            ]))
     # use default data format
     else:
         train_dataset = datasets.ImageFolder(
@@ -295,11 +302,20 @@ def main_worker(gpu, ngpus_per_node, args):
                 transforms.ToTensor(),
                 normalize,
             ]))
+
+        val_dataset = datasets.ImageFolder(valdir, transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            normalize,
+            ]))
     logger.info('Dataset created')
+    val_sampler = None
     if args.distributed:
         # tsv data format requires random subset sampler
         if args.tsv_data:
             train_sampler = TSVDistributedSampler(train_dataset)
+            val_sampler = TSVDistributedSampler(val_dataset)
         else:
             train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     else:
@@ -319,7 +335,7 @@ def main_worker(gpu, ngpus_per_node, args):
             normalize,
         ])),
         batch_size=args.batch_size, shuffle=False,
-        num_workers=args.workers, pin_memory=True)
+        num_workers=args.workers, pin_memory=True, sampler=val_sampler)
 
     if args.evaluate:
         validate(logger, val_loader, model, criterion, args)
