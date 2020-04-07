@@ -328,12 +328,7 @@ def main_worker(gpu, ngpus_per_node, args):
     logger.info('DataLoader created')
 
     val_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(valdir, transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            normalize,
-        ])),
+        val_dataset,
         batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True, sampler=val_sampler)
 
